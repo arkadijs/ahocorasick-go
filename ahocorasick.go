@@ -215,11 +215,11 @@ func (lastResult *searchResult) continueSearch() *searchResult {
         fmt.Printf("found %v\n", term)
     }
 
-  In case you don't need the results, please close the channel -- or search goroutine will stuck:
+  In case you don't need the results, please close the channel -- or search goroutine may stuck:
     ch := tree.Search("...")
     _, found := <-ch
     fmt.Printf("found? %v\n", found)
-    close (ch)
+    close(ch)
 */
 func (tree *Tree) Search(content string) <-chan string {
     c := make(chan string)
