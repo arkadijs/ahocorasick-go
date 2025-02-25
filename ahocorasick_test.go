@@ -1,3 +1,4 @@
+//nolint:errcheck // intentional
 package ahocorasick
 
 import (
@@ -180,14 +181,17 @@ func TestTree2(t *testing.T) {
 	s4 := s3.edges.get('h')
 	s5 := s4.edges.get('e')
 	s6 := s1.edges.get('i')
-	s7 := s6.edges.get('s')
-	s8 := s2.edges.get('r')
-	s9 := s8.edges.get('s')
 
 	if s6 == nil {
 		t.Log("s6 is nil")
 		t.Fail()
+
+		return
 	}
+
+	s7 := s6.edges.get('s')
+	s8 := s2.edges.get('r')
+	s9 := s8.edges.get('s')
 
 	if s0 != s1.fail || s0 != s2.fail || s0 != s3.fail || s0 != s6.fail || s0 != s8.fail ||
 		s1 != s4.fail || s2 != s5.fail || s3 != s7.fail || s3 != s9.fail {
