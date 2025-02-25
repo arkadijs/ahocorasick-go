@@ -2,6 +2,7 @@
 package ahocorasick
 
 import (
+	"context"
 	"fmt"
 	"testing"
 )
@@ -368,6 +369,29 @@ func TestChannel(t *testing.T) {
 		t.Logf("expected 'on' got '%v'", on2)
 		t.Fail()
 	}
+	if x, ok := <-ch; ok {
+		t.Logf("expected nothing got '%v'", x)
+		t.Fail()
+	}
+}
+
+func TestChannelContextCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	tree := New()
+	tree.Add("moo")
+	tree.Add("one")
+	tree.Add("on")
+	tree.Add("ne")
+	ch := tree.SearchContext(ctx, "one moon ago")
+
+	if on := <-ch; "on" != on {
+		t.Logf("expected 'on' got '%v'", on)
+		t.Fail()
+	}
+
+	cancel()
+
 	if x, ok := <-ch; ok {
 		t.Logf("expected nothing got '%v'", x)
 		t.Fail()

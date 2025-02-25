@@ -5,15 +5,15 @@ Based on original BSD licensed [implementation][orig] by Danny Yoo from UC Berke
 
 BSD license.
 
-Start using it by importing the dependency:
+Install the package with `go` command:
+```shell
+go get github.com/arkadijs/ahocorasick-go
+```
+
+and start using it by importing the dependency:
 ```go
 import "github.com/arkadijs/ahocorasick-go"
 ```
-then install the package with `go` command:
-```shell
-$ go get
-```
-The name of the package is `ahocorasick`.
 
 #### API
 
@@ -32,28 +32,34 @@ Allocates new empty `Tree` object.
 ```go
 func (tree *Tree) Add(term string) error
 ```
-Adds search `term` to the `Tree` object.
+Adds search `term` to the `Tree` object. The only error returned is `TreeAlreadyPrepared`.
 
 ```go
 func (tree *Tree) Search(content string) <-chan string
 ```
-Starts search of all `Tree` terms in the `content`. Returns Go channel the found terms could be read from.
+Prepares the tree and starts search of all `Tree` terms in the `content`.
+Returns Go channel the found terms could be read from.
 
 ```go
-	tree := ahocorasick.New()
-	tree.Add("moo")
-	tree.Add("one")
-	for term := range tree.Search("one moon ago") {
-	    fmt.Printf("found %v\n", term)
-	}
+tree := ahocorasick.New()
+tree.Add("moo")
+tree.Add("one")
+for term := range tree.Search("one moon ago") {
+	fmt.Printf("found %v\n", term)
+}
 ```
+In case you don't need the complete result set or you'd like to cancel the search -- please use `SearchContext()`.
 
-In case you don't need the results, please close the channel -- or search goroutine may stuck:
 ```go
-	ch := tree.Search("...")
-	_, found := <-ch
-	fmt.Printf("found? %v\n", found)
-	close(ch)
+func (tree *Tree) SearchContext(ctx context.Context, content string) <-chan string
+```
+Same as `Search()` but with `context.Context`.
+
+```go
+ctx, cancel := context.WithCancel(context.Background())
+ch := tree.SearchContext(ctx, "...")
+_, found := <- ch
+cancel()
 ```
 
 [ac]: http://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_string_matching_algorithm

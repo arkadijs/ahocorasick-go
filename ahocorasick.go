@@ -4,8 +4,11 @@ package ahocorasick
 
 import (
 	"container/list"
+	"context"
 	"errors"
 )
+
+var TreeAlreadyPrepared = errors.New("ahocorasick: tree already prepared - can't Add() search terms after Search() is called")
 
 // The root objects that represents compiled state of searched terms
 type Tree struct {
@@ -132,10 +135,10 @@ func (res *searchResult) out() *list.List {
 	return res.lastMatchedState.out
 }
 
-// Adds search term to the Tree object
+// Adds search term to the Tree object. The only error returned is TreeAlreadyPrepared.
 func (tree *Tree) Add(term string) error {
 	if tree.prepared {
-		return errors.New("ahocorasick: tree already prepared - can't Add() search terms after Search() is called")
+		return TreeAlreadyPrepared
 	}
 	tree.root.extendAll([]byte(term)).addOutput(term)
 	return nil
@@ -204,9 +207,8 @@ func (lastResult *searchResult) continueSearch() *searchResult {
 }
 
 /*
-Starts search of all Tree's terms in the content.
+Prepares the tree and starts search of all Tree's terms in the content.
 Returns channel the found terms could be read from.
-Usage:
 
 	tree := ahocorasick.New()
 	tree.Add("moo")
@@ -215,16 +217,14 @@ Usage:
 	    fmt.Printf("found %v\n", term)
 	}
 
-In case you don't need the results, please close the channel -- or search goroutine may stuck:
-
-	ch := tree.Search("...")
-	_, found := <-ch
-	fmt.Printf("found? %v\n", found)
-	close(ch)
+In case you don't need the complete result set or you'd like to cancel the search -- please use SearchContext().
 */
 func (tree *Tree) Search(content string) <-chan string {
 	c := make(chan string)
+
 	go func() {
+		defer close(c)
+
 		res := tree.startSearch(content)
 		for res != nil {
 			for e := res.out().Front(); e != nil; e = e.Next() {
@@ -232,7 +232,37 @@ func (tree *Tree) Search(content string) <-chan string {
 			}
 			res = res.continueSearch()
 		}
-		close(c)
 	}()
+
+	return c
+}
+
+/*
+Same as Search() but with context.Context.
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ch := tree.SearchContext(ctx, "...")
+	_, found := <- ch
+	cancel()
+*/
+func (tree *Tree) SearchContext(ctx context.Context, content string) <-chan string {
+	c := make(chan string)
+
+	go func() {
+		defer close(c)
+
+		res := tree.startSearch(content)
+		for res != nil && ctx.Err() == nil {
+			for e := res.out().Front(); e != nil; e = e.Next() {
+				select {
+				case c <- e.Value.(string):
+				case <-ctx.Done():
+					return
+				}
+			}
+			res = res.continueSearch()
+		}
+	}()
+
 	return c
 }
